@@ -64,6 +64,67 @@ var getAllProgrammesByLetter = function (letter, callback) {
 	getAllProgrammesByLetter_Q.push(letter, callback);
 }
 
+var getAllProgrammesByCategoryAndPage_L = function (category, pageNo, callback) {
+	category = category.toLowerCase();
+	request({
+		'url': 'http://www.bbc.co.uk/iplayer/categories/' + category + '/all?sort=atoz&page=' + pageNo,
+		'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/600.1.3 (KHTML, like Gecko) Version/8.0 Mobile/12A4345d Safari/600.1.4',	
+	}, function (error, response, body) {
+		var results = [ ];
+	    if (error || response.statusCode != 200) {
+	    	callback(error || new Error('response.statusCode is ' + response.statusCode), results);
+	    } else {
+	    	var $ = cheerio.load(response.body),
+	    		record;
+	    	if ($('#main div:nth-child(2) div div p').text().indexOf('There are no programmes available at the moment for ') !== -1) {
+	    		// one page too many!
+	    		callback(null, results);
+	    	} else {
+		    	$('#category-tleo-list ul li').each(function (index, element) {
+		    		results.push({
+		    			'name': $('a', element).attr('title'),
+		    			'url': $('a', element).attr('href'),
+		    		});
+		    		console.log('*** ' + $('a:nth-child(1)', element).attr('title') + ' - ' + $('a:nth-child(2)', element).text().trim()); 
+		    	});
+				async.eachSeries(results, function (result, callback) {
+					db.update(
+						{ '_id': result._id },
+						result,
+						{ 'upsert': true },
+						callback
+					);
+				}, function (err) {
+					callback(err, results);
+				});
+	    	}
+	    }
+	});
+};
+
+var getAllProgrammesByCategory_L = function (category, callback) {
+	var pageNo = 0,
+		foundSomething = false,
+		results = [ ];
+	async.doWhilst(
+		function (callback) { 
+			getAllProgrammesByCategoryAndPage_L(category, ++pageNo, function (err, r) {
+				foundSomething = r.length > 0;
+				results = results.concat(r);
+				callback(err);
+			});
+		}, 
+		function () { return foundSomething; },
+		function (err) { callback(err, results); });
+}
+
+
+
+getAllProgrammesByCategory_L('comedy', function (err) {
+	console.log('Done.');
+});
+
+/*
 var getAllProgrammes = function (callback) {
 	async.eachSeries([ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
 		'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
@@ -71,7 +132,5 @@ var getAllProgrammes = function (callback) {
 		getAllProgrammesByLetter,
 		callback);
 };
+*/
 
-getAllProgrammes(function (err) {
-	console.log('Done.');
-});
