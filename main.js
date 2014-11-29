@@ -1,70 +1,11 @@
 var async = require('async'),
 	cheerio = require('cheerio'),
-	Nedb = require('nedb'),
 	request = require('request'),
 	argv = require('yargs')
-		.demand([ 'db' ])
-		.default('db', require('path').join(__dirname, 'foo.db'))
 		.argv,
 	_ = require('underscore');
 
-var MEMOISATION_TTL = 5; // minutes
-
-var db = new Nedb({ filename: argv.db, autoload: true });
-
-var getAllProgrammesByLetter_L = function (letter, callback) {
-	letter = letter.toLowerCase();
-	request({
-		'url': 'http://www.bbc.co.uk/iplayer/a-z/' + letter,
-		'user-agent': 'Mozilla/5.0 (BB10; Touch) AppleWebKit/537.10+ (KHTML, like Gecko) Version/10.0.9.2372 Mobile Safari/537.10+',	
-	}, function (error, response, body) {
-		var results = [ ];
-	    if (error || response.statusCode != 200) {
-	    	callback(error || new Error('response.statusCode is ' + response.statusCode), results);
-	    } else {
-	    	var $ = cheerio.load(response.body),
-	    		record;
-	    	$('#atoz-content ol.tleo-list.left li').each(function (index, element) {
-	    		results.push({
-	    			'name': $(element).text().trim(),
-	    			'_id': $('a', element).attr('href').match(/([^/]+)$/)[1],
-	    		});
-	    	});
-	    	$('#atoz-content ol.tleo-list.right li').each(function (index, element) {
-	    		results.push({
-	    			'name': $(element).text().trim(),
-	    			'_id': $('a', element).attr('href').match(/([^/]+)$/)[1],
-	    		});
-	    	});
-			async.eachSeries(results, function (result, callback) {
-				db.update(
-					{ '_id': result._id },
-					result,
-					{ 'upsert': true },
-					callback
-				);
-			}, callback);
-	    }
-	});
-};
-
-var getAllProgrammesByLetter_M = async.memoize(
-	getAllProgrammesByLetter_L,
-	function (letter) { 
-		letter = letter.toLowerCase();
-		return letter + '_' + Math.floor((new Date()).valueOf() / (MEMOISATION_TTL * 3600000));
-	}
-); 
-
-var getAllProgrammesByLetter_Q = async.queue(function (letter, callback) {
-	getAllProgrammesByLetter_M(letter, callback);
-}, 1);
-
-var getAllProgrammesByLetter = function (letter, callback) {
-	getAllProgrammesByLetter_Q.push(letter, callback);
-}
-
-var getAllProgrammesByCategoryAndPage_L = function (category, pageNo, callback) {
+var getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	category = category.toLowerCase();
 	request({
 		'url': 'http://www.bbc.co.uk/iplayer/categories/' + category + '/all?sort=atoz&page=' + pageNo,
@@ -80,29 +21,21 @@ var getAllProgrammesByCategoryAndPage_L = function (category, pageNo, callback) 
 	    		// one page too many!
 	    		callback(null, results);
 	    	} else {
-		    	$('#category-tleo-list ul li').each(function (index, element) {
+		    	$('#category-tleo-list ul li.list-item.programme').each(function (index, element) {
 		    		results.push({
+		    			'_id': $(element).attr('data-ip-id'),
 		    			'name': $('a', element).attr('title'),
 		    			'url': $('a', element).attr('href'),
+		    			'synopsis': $('div.secondary p.synopsis', element).text().trim(),
 		    		});
-		    		console.log('*** ' + $('a:nth-child(1)', element).attr('title') + ' - ' + $('a:nth-child(2)', element).text().trim()); 
 		    	});
-				async.eachSeries(results, function (result, callback) {
-					db.update(
-						{ '_id': result._id },
-						result,
-						{ 'upsert': true },
-						callback
-					);
-				}, function (err) {
-					callback(err, results);
-				});
+				callback(null, results);
 	    	}
 	    }
 	});
 };
 
-var getAllProgrammesByCategory_L = function (category, callback) {
+var getAllProgrammesByCategory = function (category, callback) {
 	var pageNo = 0,
 		foundSomething = false,
 		results = [ ];
@@ -118,19 +51,9 @@ var getAllProgrammesByCategory_L = function (category, callback) {
 		function (err) { callback(err, results); });
 }
 
-
-
-getAllProgrammesByCategory_L('comedy', function (err) {
-	console.log('Done.');
+getAllProgrammesByCategoryAndPage('films', 1, function (err, results) {
+	console.log(JSON.stringify(results));
 });
 
-/*
-var getAllProgrammes = function (callback) {
-	async.eachSeries([ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
-		'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
-		'z', '0-9' ], 
-		getAllProgrammesByLetter,
-		callback);
-};
-*/
+
 
