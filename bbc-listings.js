@@ -1,9 +1,11 @@
 var async = require('async'),
 	cheerio = require('cheerio'),
-	Nedb = require('nedb'), 
+	fs = require('fs'), 
 	path = require('path'),
 	request = require('request'),
 	_ = require('underscore');
+
+var CACHE_TTL = 5; // minutes
 
 var _getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	category = category.toLowerCase();
@@ -23,8 +25,9 @@ var _getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	    	} else {
 		    	$('#category-tleo-list ul li.list-item.programme').each(function (index, element) {
 		    		results.push({
-		    			'_id': $(element).attr('data-ip-id'),
+		    			'dataIpId': $(element).attr('data-ip-id'),
 		    			'name': $('a', element).attr('title'),
+		    			'category': [ category ],
 		    			'url': 'http://www.bbc.co.uk' + $('a', element).attr('href'),
 		    			'synopsis': $('div.secondary p.synopsis', element).text().trim(),
 		    		});
@@ -52,25 +55,58 @@ var _getAllProgrammesByCategory = function (category, callback) {
 }
 
 var _getAll = function (callback) {
-	var db = new Nedb({ filename: path.join(__dirname, path.basename(__filename) + '.db') });
-	db.loadDatabase(function (err) { 
-		async.reduce([ 'films' ], [ ], function (memo, category, callback) {
-			_getAllProgrammesByCategory(category, function (err, results) {
-				callback(err, memo.concat(results));
-			});
+
+	var cacheFilename = path.join(__dirname, path.basename(__filename) + '.db');
+
+	var readLiveData = function (callback) {
+		var timestamp = new Date();
+		async.reduce(
+			[ 'arts', 'cbbc', 'cbeebies', 'comedy', 'documentaries', 
+				'drama-and-soaps', 'entertainment', 'films', 'food', 
+				'history', 'lifestyle', 'music', 'news', 'science-and-nature',
+				'sport', 'audio-described', 'signed', 'northern-ireland',
+				'scotland', 'wales' ], 
+			[ ], 
+			function (memo, category, callback) {
+				_getAllProgrammesByCategory(category, function (err, results) {
+					results.forEach(function (r) {
+						var preexistingProgramme = memo.filter(function (m) { return m.dataIpId === r.dataIpId; });
+						if (preexistingProgramme.length > 0) {
+							preexistingProgramme[0].category = preexistingProgramme[0].category.concat(r.category);
+						} else {
+							memo = memo.concat(r);
+						}
+					});
+					callback(err, memo);
+				});
 		}, function (err, results) {
-			async.each(results, function (result, callback) {
-				db.update(
-					{ '_id': result._id },
-					result,
-					{ 'upsert': true },
-					callback
-				);
-			}, function (err) {
-				callback(err, results);
+			callback(null, {
+				'lastUpdated': timestamp,
+				'programmes': results,
 			});
 		});
+	}
+
+	var readCache = function (callback) {
+		callback(null, fs.existsSync(cacheFilename) ? JSON.parse(fs.readFileSync(cacheFilename)) : { });
+	};
+
+	var saveCache = function (cache, callback) {
+		fs.writeFile(cacheFilename, JSON.stringify(cache), callback);
+	}
+
+	readCache(function (err, cache) {
+		if (!cache.lastUpdated || (((new Date()) - cache.lastUpdated) > CACHE_TTL * 60000)) {
+			readLiveData(function (err, cache) {
+				saveCache(cache, function (err) {
+					callback(err, cache.programmes);
+				});
+			})
+		} else {
+			callback(err, cache.programmes);
+		}
 	});
+
 }
 
 exports.get = _getAll;
