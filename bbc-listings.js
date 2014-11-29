@@ -1,8 +1,6 @@
 var async = require('async'),
 	cheerio = require('cheerio'),
 	request = require('request'),
-	argv = require('yargs')
-		.argv,
 	_ = require('underscore');
 
 var getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
@@ -51,10 +49,5 @@ exports.getAllProgrammesByCategory = function (category, callback) {
 		function (err) { callback(err, results); });
 }
 
-/*
-getAllProgrammesByCategory('films', function (err, results) {
-	console.log(JSON.stringify(results));
-});
-*/
 
 
