@@ -41,7 +41,7 @@ var getAllProgrammesByCategory = function (category, callback) {
 		results = [ ];
 	async.doWhilst(
 		function (callback) { 
-			getAllProgrammesByCategoryAndPage_L(category, ++pageNo, function (err, r) {
+			getAllProgrammesByCategoryAndPage(category, ++pageNo, function (err, r) {
 				foundSomething = r.length > 0;
 				results = results.concat(r);
 				callback(err);
@@ -51,7 +51,7 @@ var getAllProgrammesByCategory = function (category, callback) {
 		function (err) { callback(err, results); });
 }
 
-getAllProgrammesByCategoryAndPage('films', 1, function (err, results) {
+getAllProgrammesByCategory('films', function (err, results) {
 	console.log(JSON.stringify(results));
 });
 
