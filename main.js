@@ -30,6 +30,6 @@ bbcListings.get(function (err, results) {
 				callback(null);
 			});
 	}, function (err) {
-		console.log("Done.");
+		// finished
 	});
 });
