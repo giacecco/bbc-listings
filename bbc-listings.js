@@ -5,7 +5,7 @@ var async = require('async'),
 	request = require('request'),
 	_ = require('underscore');
 
-var CACHE_TTL = 5; // minutes
+var CACHE_TTL = 30; // minutes
 
 var _getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	category = category.toLowerCase();
