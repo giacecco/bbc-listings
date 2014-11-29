@@ -23,7 +23,7 @@ var getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 		    		results.push({
 		    			'_id': $(element).attr('data-ip-id'),
 		    			'name': $('a', element).attr('title'),
-		    			'url': $('a', element).attr('href'),
+		    			'url': 'http://www.bbc.co.uk' + $('a', element).attr('href'),
 		    			'synopsis': $('div.secondary p.synopsis', element).text().trim(),
 		    		});
 		    	});
