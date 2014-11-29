@@ -1,9 +1,11 @@
 var async = require('async'),
 	cheerio = require('cheerio'),
+	Nedb = require('nedb'), 
+	path = require('path'),
 	request = require('request'),
 	_ = require('underscore');
 
-var getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
+var _getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	category = category.toLowerCase();
 	request({
 		'url': 'http://www.bbc.co.uk/iplayer/categories/' + category + '/all?sort=atoz&page=' + pageNo,
@@ -33,13 +35,13 @@ var getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	});
 };
 
-exports.getAllProgrammesByCategory = function (category, callback) {
+var _getAllProgrammesByCategory = function (category, callback) {
 	var pageNo = 0,
 		foundSomething = false,
 		results = [ ];
 	async.doWhilst(
 		function (callback) { 
-			getAllProgrammesByCategoryAndPage(category, ++pageNo, function (err, r) {
+			_getAllProgrammesByCategoryAndPage(category, ++pageNo, function (err, r) {
 				foundSomething = r.length > 0;
 				results = results.concat(r);
 				callback(err);
@@ -49,5 +51,26 @@ exports.getAllProgrammesByCategory = function (category, callback) {
 		function (err) { callback(err, results); });
 }
 
+var _getAll = function (callback) {
+	var db = new Nedb({ filename: path.join(__dirname, path.basename(__filename) + '.db') });
+	db.loadDatabase(function (err) { 
+		async.reduce([ 'films' ], [ ], function (memo, category, callback) {
+			_getAllProgrammesByCategory(category, function (err, results) {
+				callback(err, memo.concat(results));
+			});
+		}, function (err, results) {
+			async.each(results, function (result, callback) {
+				db.update(
+					{ '_id': result._id },
+					result,
+					{ 'upsert': true },
+					callback
+				);
+			}, function (err) {
+				callback(err, results);
+			});
+		});
+	});
+}
 
-
+exports.get = _getAll;

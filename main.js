@@ -10,7 +10,7 @@ var async = require('async'),
 	exec = require('child_process').exec,
 	bbcListings = require('./bbc-listings');
 
-bbcListings.getAllProgrammesByCategory('films', function (err, results) {
+bbcListings.get(function (err, results) {
 	var searchString = argv.get || argv._[0];
 	if(searchString) {
 		results = results.filter(function (r) { return r.name.match(new RegExp(searchString, 'gi')); });
