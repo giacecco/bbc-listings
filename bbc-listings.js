@@ -35,7 +35,7 @@ var getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	});
 };
 
-var getAllProgrammesByCategory = function (category, callback) {
+exports.getAllProgrammesByCategory = function (category, callback) {
 	var pageNo = 0,
 		foundSomething = false,
 		results = [ ];
@@ -51,9 +51,10 @@ var getAllProgrammesByCategory = function (category, callback) {
 		function (err) { callback(err, results); });
 }
 
+/*
 getAllProgrammesByCategory('films', function (err, results) {
 	console.log(JSON.stringify(results));
 });
-
+*/
 
 
