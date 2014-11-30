@@ -26,9 +26,9 @@ var run = function (parameters, callback) {
 		results = !parameters.searchString ? results : results.filter(function (r) { return r.name.match(new RegExp(parameters.searchString, 'gi')); });
 		console.log('Matching results:');
 		console.log(results);
-		if (results.length > 0) {
+		if (parameters.get && (results.length > 0)) {
 			console.log('Executing:');
-			async.eachSeries(argv.get ? results.map(function (r) { return r.url; }) : [ ], function (url, callback) {
+			async.eachSeries(results.map(function (r) { return r.url; }), function (url, callback) {
 				var command = 			
 					parameters.getIplayerScript + ' '
 					+ (parameters.force ? '--force ' : '') 
