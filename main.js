@@ -1,18 +1,19 @@
 var async = require('async'),
 	path = require('path'),
 	argv = require('yargs')
-		.demand([ 'getiplayer', 'output' ])
+		.demand([ 'getiplayer', 'output', 'type' ])
 		.alias('c', 'category')
 		.alias('g', 'get')
 		.alias('o', 'output')
 		.default('getiplayer', '/usr/local/bin/get_iplayer')
 		.default('getiplayer-home', path.join(process.env.HOME, '.get_iplayer'))
 		.default('output', __dirname)
+		.default('type', 'tv')
 		.argv,
 	_ = require('underscore'),
 	exec = require('child_process').exec,
 	fs = require('fs'),
-	bbcListings = require('./bbc-listings');
+	bbcTvListings = require('./bbc-tv-listings');
 
 var run = function (parameters, callback) {
 	// check on the input parameters
@@ -21,7 +22,7 @@ var run = function (parameters, callback) {
 	if (!fs.lstatSync(parameters.output).isDirectory()) throw new Error('The specified output directory is not a directory.');
 	if (!fs.existsSync(parameters.getiplayer)) throw new Error('The specified get_iplayer script does not exist.');
 	// do the job
-	bbcListings.get(function (err, results) {
+	bbcTvListings.get(function (err, results) {
 		// filtering by category
 		results = !parameters.category ? results : results.filter(function (r) { return _.intersection(parameters.category, r.category).length > 0; });
 		// filtering by search string
@@ -67,7 +68,7 @@ var loadPvrSettings = function (pvrSettingsDirectory, callback) {
 // options, as in the original get_iplayer
 // TODO: add support to run --pvr [pvr settings filename] rather than all of them
 var PARAMETERS_WITHOUT_VALUE = [ 'get', 'prv', 'force' ], 
-	PARAMETERS_WITHOUT_TRANSFORMATION = PARAMETERS_WITHOUT_VALUE.concat([ 'getiplayer', 'getiplayer-home', 'output' ]),
+	PARAMETERS_WITHOUT_TRANSFORMATION = PARAMETERS_WITHOUT_VALUE.concat([ 'getiplayer', 'getiplayer-home', 'output', 'type' ]),
 	// propagate to the parameters object all parameters that do not need 
 	// transformation
 	defaultParameters = PARAMETERS_WITHOUT_TRANSFORMATION.reduce(function (memo, x) { memo[x] = argv[x]; return memo; }, { });

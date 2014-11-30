@@ -27,6 +27,7 @@ var _getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 		    		results.push({
 		    			'dataIpId': $(element).attr('data-ip-id'),
 		    			'name': $('a', element).attr('title'),
+		    			'type': 'tv',
 		    			'category': [ category ],
 		    			'url': 'http://www.bbc.co.uk' + $('a', element).attr('href'),
 		    			'synopsis': $('div.secondary p.synopsis', element).text().trim(),
