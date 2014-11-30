@@ -9,9 +9,16 @@ var async = require('async'),
 		.argv,
 	_ = require('underscore'),
 	exec = require('child_process').exec,
+	fs = require('fs'),
 	bbcListings = require('./bbc-listings');
 
 var run = function (parameters, callback) {
+	// check on the input parameters
+	if (!_.every([ 'output', 'getIplayerScript' ], function (s) { return _.isString(parameters[s]); })) throw new Error('One or more required parameters are missing.');
+	if (!fs.existsSync(parameters.output)) throw new Error('The specified output directory does not exist.');
+	if (!fs.lstatSync(parameters.output).isDirectory()) throw new Error('The specified output directory is not a directory.');
+	if (!fs.existsSync(parameters.getIplayerScript)) throw new Error('The specified get_iplayer script does not exist.');
+	// do the job
 	bbcListings.get(function (err, results) {
 		// filtering by category
 		results = !parameters.categories ? results : results.filter(function (r) { return _.intersection(parameters.categories, r.category).length > 0; });
