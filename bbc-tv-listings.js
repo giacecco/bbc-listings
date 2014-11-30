@@ -1,19 +1,21 @@
 var async = require('async'),
 	cheerio = require('cheerio'),
-	fs = require('fs'), 
 	path = require('path'),
+	Nedb = require('nedb'),
 	request = require('request'),
 	_ = require('underscore');
 
 var CACHE_TTL = 30; // minutes
 
+var db = null;
+
 var _getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	category = category.toLowerCase();
+	var timestamp = new Date();
 	request({
 		'url': 'http://www.bbc.co.uk/iplayer/categories/' + category + '/all?sort=atoz&page=' + pageNo,
 		'user-agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_0 like Mac OS X) AppleWebKit/600.1.3 (KHTML, like Gecko) Version/8.0 Mobile/12A4345d Safari/600.1.4',	
 	}, function (error, response, body) {
-		var results = [ ];
 	    if (error || response.statusCode != 200) {
 	    	callback(error || new Error('response.statusCode is ' + response.statusCode), results);
 	    } else {
@@ -21,11 +23,13 @@ var _getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 	    		record;
 	    	if ($('#main div:nth-child(2) div div p').text().indexOf('There are no programmes available at the moment for ') !== -1) {
 	    		// one page too many!
-	    		callback(null, results);
+	    		callback(null, [ ]);
 	    	} else {
+				var results = [ ];
 		    	$('#category-tleo-list ul li.list-item.programme').each(function (index, element) {
 		    		results.push({
-		    			'dataIpId': $(element).attr('data-ip-id'),
+		    			'_id': $(element).attr('data-ip-id'),
+		    			'existenceLatestKnown': timestamp,
 		    			'name': $('a', element).attr('title'),
 		    			'type': 'tv',
 		    			'category': [ category ],
@@ -33,7 +37,7 @@ var _getAllProgrammesByCategoryAndPage = function (category, pageNo, callback) {
 		    			'synopsis': $('div.secondary p.synopsis', element).text().trim(),
 		    		});
 		    	});
-				callback(null, results);
+		    	callback(null, results);
 	    	}
 	    }
 	});
@@ -45,14 +49,16 @@ var _getAllProgrammesByCategory = function (category, callback) {
 		results = [ ];
 	async.doWhilst(
 		function (callback) { 
-			_getAllProgrammesByCategoryAndPage(category, ++pageNo, function (err, r) {
-				foundSomething = r.length > 0;
-				results = results.concat(r);
+			_getAllProgrammesByCategoryAndPage(category, ++pageNo, function (err, pageResults) {
+				foundSomething = pageResults.length > 0;
+				results = results.concat(pageResults);
 				callback(err);
 			});
 		}, 
 		function () { return foundSomething; },
-		function (err) { callback(err, results); });
+		function (err) { 
+			callback(err, results);	
+		});
 }
 
 var _getAll = function (callback) {
@@ -71,7 +77,7 @@ var _getAll = function (callback) {
 			function (memo, category, callback) {
 				_getAllProgrammesByCategory(category, function (err, results) {
 					results.forEach(function (r) {
-						var preexistingProgramme = memo.filter(function (m) { return m.dataIpId === r.dataIpId; });
+						var preexistingProgramme = memo.filter(function (m) { return m._id === r._id; });
 						if (preexistingProgramme.length > 0) {
 							preexistingProgramme[0].category = preexistingProgramme[0].category.concat(r.category);
 						} else {
@@ -81,33 +87,38 @@ var _getAll = function (callback) {
 					callback(err, memo);
 				});
 		}, function (err, results) {
-			callback(null, {
-				'lastUpdated': timestamp,
-				'programmes': results,
-			});
+	    	// clear the cache
+    		var currentIds = results.map(function (r) { return r._id; });
+    		db.remove({ }, { 'multi': true }, function (err, numRemoved) {
+		    	// write the new one
+		    	async.map(results, function (result, callback) {
+		    		db.findOne({ '_id': result._id }, function (err, doc) {
+		    			if (!doc) {
+		    				// new record!
+		    				db.insert(result, function (err) { callback(err, result); });
+		    			} else {
+		    				result.category = _.union(result.category, doc.category);
+		    				db.update({ '_id': result._id }, result, { }, function (err) { callback(err, result); });
+		    			}
+		    		});
+		    	}, callback);
+    		});
 		});
 	}
 
-	var readCache = function (callback) {
-		callback(null, fs.existsSync(cacheFilename) ? JSON.parse(fs.readFileSync(cacheFilename)) : { });
-	};
-
-	var saveCache = function (cache, callback) {
-		fs.writeFile(cacheFilename, JSON.stringify(cache), callback);
-	}
-
-	readCache(function (err, cache) {
-		if (!cache.lastUpdated || ((new Date()) - (new Date(cache.lastUpdated)) > CACHE_TTL * 60000)) {
-			readLiveData(function (err, cache) {
-				saveCache(cache, function (err) {
-					callback(err, cache.programmes);
+	db = new Nedb({ filename: path.join(__dirname, path.basename(__filename) + '.db') });
+	db.loadDatabase(function (err) {   
+		db.find({ }).sort({ 'existenceLatestKnown': -1 }).limit(1).exec(function (err, docs) {
+			if (docs.length === 0 || ((new Date()) - docs[0].existenceLatestKnown > CACHE_TTL * 60000)) {
+				readLiveData(function (err, cache) {
+					callback(err, cache);
 				});
-			})
-		} else {
-			callback(err, cache.programmes);
-		}
+			} else {
+				db.find({ }, callback);
+			}
+		})
 	});
-
 }
 
 exports.get = _getAll;
+

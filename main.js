@@ -78,7 +78,7 @@ if (argv.pvr) {
 		// TODO: radio is not supported, filtering that out
 		downloadList = _.reject(downloadList, function (s) { return s.type === 'radio'; });
 		// adds the default parameters where not defined already
-		downloadList = settings.map(function (s) { return _.extend(JSON.parse(JSON.stringify(defaultParameters)), s); });
+		downloadList = downloadList.map(function (s) { return _.extend(JSON.parse(JSON.stringify(defaultParameters)), s); });
 		// adds the 'get' parameter
 		downloadList.forEach(function (d) { d.get = true; });
 		async.eachSeries(downloadList, function (d, callback) {
