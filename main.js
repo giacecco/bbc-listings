@@ -40,11 +40,11 @@ var run = function (parameters, callback) {
 	});
 };
 
+// TODO: need to add support to regular expressions for all string searching
+// options, as in the original get_iplayer
 // TODO: abort if the specified get_iplayer script does not exist
 var parameters = { };
 parameters.categories = argv.category ? argv.category.toLowerCase().split(',') : null;
-// TODO: need to add support to regular expressions below, as in the 
-// original get_iplayer
 // to mimic the original get_iplayer command line behaviour, the search 
 // string can appear on its own or as the value of any of the parameters
 // that do not have a value (e.g. --get)
