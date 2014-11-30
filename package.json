@@ -1,1 +1,18 @@
-{"name":"bbc-listings","version":"0.0.1","description":"Creates a database of recent BBC programming to help searching your favourite programme.","main":"main.js","scripts":{"test":"echo \"Error: no test specified\" && exit 1"},"author":"","license":"ISC","dependencies":{"async":"^0.9.0","cheerio":"^0.17.0","request":"^2.47.0","underscore":"^1.7.0","yargs":"^1.3.2"}}
+{
+  "name": "bbc-listings",
+  "version": "0.0.1",
+  "description": "Creates a database of recent BBC programming to help searching your favourite programme.",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^0.9.0",
+    "cheerio": "^0.17.0",
+    "request": "^2.47.0",
+    "underscore": "^1.7.0",
+    "yargs": "^1.3.2"
+  }
+}

@@ -57,8 +57,6 @@ var loadPvrSettings = function (pvrSettingsDirectory, callback) {
 			return memo;
 		}, { }));
 	}, function (err, results) {
-		// TODO: radio is not supported, filtering that out
-		results = _.reject(results, function (r) { return r.type === 'radio'; });
 		// fix the format of the category field
 		results.forEach(function (r) { if (r.category) r.category = r.category.toLowerCase().split(','); });
 		callback(null, results);
@@ -72,11 +70,12 @@ var PARAMETERS_WITHOUT_VALUE = [ 'get', 'prv', 'force' ],
 	PARAMETERS_WITHOUT_TRANSFORMATION = PARAMETERS_WITHOUT_VALUE.concat([ 'getiplayer', 'getiplayer-home', 'output' ]),
 	// propagate to the parameters object all parameters that do not need 
 	// transformation
-	defaultParameters = PARAMETERS_WITHOUT_TRANSFORMATION.reduce(function (memo, x) { memo[x] = argv[x]; return memo; }, { }),
-	downloadList = [ ];
+	defaultParameters = PARAMETERS_WITHOUT_TRANSFORMATION.reduce(function (memo, x) { memo[x] = argv[x]; return memo; }, { });
 if (argv.pvr) {
-	console.log('Running PVR Searches:');
-	loadPvrSettings(path.join(argv['getiplayer-home'], 'pvr'), function (err, settings) {
+	console.log('Running PVR Searches (radio programmes are currently *not* supported):');
+	loadPvrSettings(path.join(argv['getiplayer-home'], 'pvr'), function (err, downloadList) {
+		// TODO: radio is not supported, filtering that out
+		downloadList = _.reject(downloadList, function (s) { return s.type === 'radio'; });
 		// adds the default parameters where not defined already
 		downloadList = settings.map(function (s) { return _.extend(JSON.parse(JSON.stringify(defaultParameters)), s); });
 		// adds the 'get' parameter
