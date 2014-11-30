@@ -1,10 +1,12 @@
 var async = require('async'),
+	path = require('path'),
 	argv = require('yargs')
 		.demand([ 'getiplayer', 'output' ])
 		.alias('c', 'category')
 		.alias('g', 'get')
 		.alias('o', 'output')
 		.default('getiplayer', '/usr/local/bin/get_iplayer')
+		.default('getiplayer-home', path.join(process.env.HOME, '.get_iplayer'))
 		.default('output', __dirname)
 		.argv,
 	_ = require('underscore'),
@@ -21,10 +23,10 @@ var run = function (parameters, callback) {
 	// do the job
 	bbcListings.get(function (err, results) {
 		// filtering by category
-		results = !parameters.categories ? results : results.filter(function (r) { return _.intersection(parameters.categories, r.category).length > 0; });
+		results = !parameters.category ? results : results.filter(function (r) { return _.intersection(parameters.category, r.category).length > 0; });
 		// filtering by search string
-		results = !parameters.searchString ? results : results.filter(function (r) { return r.name.match(new RegExp(parameters.searchString, 'gi')); });
-		console.log('Matching results:');
+		results = !parameters.search0 ? results : results.filter(function (r) { return r.name.match(new RegExp(parameters.search0, 'gi')); });
+		console.log('Matching results for ' + JSON.stringify(parameters) + ':');
 		console.log(results);
 		if (parameters.get && (results.length > 0)) {
 			console.log('Executing:');
@@ -47,22 +49,53 @@ var run = function (parameters, callback) {
 	});
 };
 
+var loadPvrSettings = function (pvrSettingsDirectory, callback) {
+	async.map(fs.readdirSync(pvrSettingsDirectory), function (pvrSettingsFile, callback) {
+		console.log(pvrSettingsFile);
+		callback(null, fs.readFileSync(path.join(pvrSettingsDirectory, pvrSettingsFile), { 'encoding': 'utf8' }).split('\n').reduce(function (memo, line) {
+			if (line.match(/([^ ]*) (.*)/)) memo[line.match(/([^ ]*) (.*)/)[1]] = line.match(/([^ ]*) (.*)/)[2].trim();
+			return memo;
+		}, { }));
+	}, function (err, results) {
+		// TODO: radio is not supported, filtering that out
+		results = _.reject(results, function (r) { return r.type === 'radio'; });
+		// fix the format of the category field
+		results.forEach(function (r) { if (r.category) r.category = r.category.toLowerCase().split(','); });
+		callback(null, results);
+	});
+};
+
 // TODO: need to add support to regular expressions for all string searching
 // options, as in the original get_iplayer
-// TODO: abort if the specified get_iplayer script does not exist
+// TODO: add support to run --pvr [pvr settings filename] rather than all of them
 var PARAMETERS_WITHOUT_VALUE = [ 'get', 'prv', 'force' ], 
-	PARAMETERS_WITHOUT_TRANSFORMATION = PARAMETERS_WITHOUT_VALUE.concat([ 'getiplayer', 'output' ]),
-	parameters = { };
-// propagate to the parameters object all parameters that do not need 
-// transformation
-PARAMETERS_WITHOUT_TRANSFORMATION.forEach(function (x) { parameters[x] = argv[x]; });
-// interpret the 'category' parameter
-parameters.categories = argv.category ? argv.category.toLowerCase().split(',') : null;
-// to mimic the original get_iplayer command line behaviour, the search 
-// string can appear on its own or as the value of any of the parameters
-// that do not have a value (e.g. --get)
-parameters.searchString = _.find(PARAMETERS_WITHOUT_VALUE.map(function (x) { return argv[x]; }).concat(argv._[0]), function (x) { return _.isString(x); });
-// TODO: add support for reading get_iplayer's original pvr folder, or equivalent
-run(parameters, function (err) { });
-
+	PARAMETERS_WITHOUT_TRANSFORMATION = PARAMETERS_WITHOUT_VALUE.concat([ 'getiplayer', 'getiplayer-home', 'output' ]),
+	// propagate to the parameters object all parameters that do not need 
+	// transformation
+	defaultParameters = PARAMETERS_WITHOUT_TRANSFORMATION.reduce(function (memo, x) { memo[x] = argv[x]; return memo; }, { }),
+	downloadList = [ ];
+if (argv.pvr) {
+	console.log('Running PVR Searches:');
+	loadPvrSettings(path.join(argv['getiplayer-home'], 'pvr'), function (err, settings) {
+		// adds the default parameters where not defined already
+		downloadList = settings.map(function (s) { return _.extend(JSON.parse(JSON.stringify(defaultParameters)), s); });
+		// adds the 'get' parameter
+		downloadList.forEach(function (d) { d.get = true; });
+		async.eachSeries(downloadList, function (d, callback) {
+			run(d, callback);
+		}, function (err) {
+			// finished
+		});
+	});
+} else {
+	var parameters = JSON.parse(JSON.stringify(defaultParameters));
+	// interpret the 'category' parameter
+	parameters.category = argv.category ? argv.category.toLowerCase().split(',') : null;
+	// to mimic the original get_iplayer command line behaviour, the search 
+	// string can appear on its own or as the value of any of the parameters
+	// that do not have a value (e.g. --get)
+	parameters.search0 = _.find(PARAMETERS_WITHOUT_VALUE.map(function (x) { return argv[x]; }).concat(argv._[0]), function (x) { return _.isString(x); });
+	// TODO: add support for reading get_iplayer's original pvr folder, or equivalent
+	run(parameters, function (err) { });
+}
 
