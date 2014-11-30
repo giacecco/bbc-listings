@@ -19,7 +19,10 @@ bbcListings.get(function (err, results) {
 		var categories = argv.category.toLowerCase().split(',');
 		results = results.filter(function (r) { return _.intersection(categories, r.category).length > 0; });
 	}
-	var searchString = argv.get || argv._[0];
+	// to mimic the original get_iplayer command line behaviour, the search 
+	// string can appear on its own or as the value of any of the parameters
+	// that do not have a value (e.g. --get)
+	var searchString = _.find([ argv.get, argv.force, argv._[0] ], function (x) { return _.isString(x); });
 	if (searchString) {
 		// filtering by search string
 		results = results.filter(function (r) { return r.name.match(new RegExp(searchString, 'gi')); });
