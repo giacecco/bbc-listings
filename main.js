@@ -30,7 +30,7 @@ var run = function (parameters, callback) {
 			console.log('Executing:');
 			async.eachSeries(argv.get ? results.map(function (r) { return r.url; }) : [ ], function (url, callback) {
 				var command = 			
-					parameters.getiplayerScript + ' '
+					parameters.getIplayerScript + ' '
 					+ (parameters.force ? '--force ' : '') 
 					+ '--output "' + parameters.output + '" ' 
 					+ (parameters.get ? '--get ' : '')
@@ -58,7 +58,7 @@ parameters.categories = argv.category ? argv.category.toLowerCase().split(',') :
 parameters.searchString = _.find([ argv.get, argv.force, argv._[0] ], function (x) { return _.isString(x); });
 parameters.force = argv.force;
 parameters.get = argv.get;
-parameters.getiplayerScript = argv.getiplayer;
+parameters.getIplayerScript = argv.getiplayer;
 // TODO: abort if the output folder does not exist
 parameters.output = argv.output;
 run(parameters, function (err) { });
