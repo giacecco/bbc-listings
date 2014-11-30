@@ -11,6 +11,9 @@ var async = require('async'),
 	exec = require('child_process').exec,
 	bbcListings = require('./bbc-listings');
 
+var exit = function (err) {
+	//finished, do nothing
+}
 bbcListings.get(function (err, results) {
 	// TODO: need to add support to regular expressions below, as in the 
 	// original get_iplayer
@@ -29,19 +32,22 @@ bbcListings.get(function (err, results) {
 	};
 	console.log('Matching results:');
 	console.log(results);
-	async.eachSeries(argv.get ? results.map(function (r) { return r.url; }) : [ ], function (url, callback) {
-		var command = 			
-			argv.getiplayer + ' '
-			+ (argv.force ? '--force ' : '') 
-			+ '--output "' + argv.output + '" ' 
-			+ (argv.get ? '--get ' : '')
-			+ url;
-		console.log(command);
-		var child = exec(command, function (err, stdout, stderr) {
-				console.log(stdout);
-				callback(null);
-			});
-	}, function (err) {
-		// finished
-	});
+	if (results.length > 0) {
+		console.log('Executing:');
+		async.eachSeries(argv.get ? results.map(function (r) { return r.url; }) : [ ], function (url, callback) {
+			var command = 			
+				argv.getiplayer + ' '
+				+ (argv.force ? '--force ' : '') 
+				+ '--output "' + argv.output + '" ' 
+				+ (argv.get ? '--get ' : '')
+				+ url;
+			console.log(command);
+			var child = exec(command, function (err, stdout, stderr) {
+					console.log(stdout);
+					callback(null);
+				});
+		}, exit);
+	} else {
+		exit(null);
+	}
 });
