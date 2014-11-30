@@ -96,7 +96,7 @@ var _getAll = function (callback) {
 	}
 
 	readCache(function (err, cache) {
-		if (!cache.lastUpdated || (((new Date()) - cache.lastUpdated) > CACHE_TTL * 60000)) {
+		if (!cache.lastUpdated || ((new Date()) - (new Date(cache.lastUpdated)) > CACHE_TTL * 60000)) {
 			readLiveData(function (err, cache) {
 				saveCache(cache, function (err) {
 					callback(err, cache.programmes);
