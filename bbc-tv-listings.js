@@ -61,9 +61,7 @@ var _getAllProgrammesByCategory = function (category, callback) {
 		});
 }
 
-var _getAll = function (callback) {
-
-	var cacheFilename = path.join(__dirname, path.basename(__filename) + '.db');
+var _getAll = function (optionalNedbQuery, callback) {
 
 	var readLiveData = function (callback) {
 		var timestamp = new Date();
@@ -106,15 +104,16 @@ var _getAll = function (callback) {
 		});
 	}
 
+	if (!callback) { callback = optionalNedbQuery; optionalNedbQuery = { }; }
 	db = new Nedb({ filename: path.join(__dirname, path.basename(__filename) + '.db') });
 	db.loadDatabase(function (err) {   
 		db.find({ }).sort({ 'existenceLatestKnown': -1 }).limit(1).exec(function (err, docs) {
 			if (docs.length === 0 || ((new Date()) - docs[0].existenceLatestKnown > CACHE_TTL * 60000)) {
 				readLiveData(function (err, cache) {
-					callback(err, cache);
+					db.find(optionalNedbQuery, callback);
 				});
 			} else {
-				db.find({ }, callback);
+				db.find(optionalNedbQuery, callback);
 			}
 		})
 	});

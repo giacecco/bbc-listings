@@ -22,9 +22,10 @@ var run = function (parameters, callback) {
 	if (!fs.lstatSync(parameters.output).isDirectory()) throw new Error('The specified output directory is not a directory.');
 	if (!fs.existsSync(parameters.getiplayer)) throw new Error('The specified get_iplayer script does not exist.');
 	// do the job
-	bbcTvListings.get(function (err, results) {
-		// filtering by category
-		results = !parameters.category ? results : results.filter(function (r) { return _.intersection(parameters.category, r.category).length > 0; });
+	var nedbQuery = { };
+	if (parameters.category) nedbQuery.category = { '$in': parameters.category };
+	bbcTvListings.get(nedbQuery, function (err, results) {
+		console.log(results);
 		// filtering by search string
 		results = !parameters.search0 ? results : results.filter(function (r) { return r.name.match(new RegExp(parameters.search0, 'gi')); });
 		console.log('Matching results for ' + JSON.stringify(parameters) + ':');
