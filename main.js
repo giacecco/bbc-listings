@@ -25,7 +25,6 @@ var run = function (parameters, callback) {
 	var nedbQuery = { };
 	if (parameters.category) nedbQuery.category = { '$in': parameters.category };
 	bbcTvListings.get(nedbQuery, function (err, results) {
-		console.log(results);
 		// filtering by search string
 		results = !parameters.search0 ? results : results.filter(function (r) { return r.name.match(new RegExp(parameters.search0, 'gi')); });
 		console.log('Matching results for ' + JSON.stringify(parameters) + ':');
